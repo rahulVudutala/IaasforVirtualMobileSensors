@@ -3,17 +3,17 @@
  */
 package com.Iaas.Util;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.Iaas.VO.SensorVO;
+import com.Iaas.dbConnections.DBConnections;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2Client;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
-import com.amazonaws.services.ec2.model.CreateKeyPairResult;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
-import com.amazonaws.services.ec2.model.DescribeInstancesResult;
-import com.amazonaws.services.ec2.model.KeyPair;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.StartInstancesRequest;
@@ -25,24 +25,26 @@ import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
  *
  */
 public class InstancesUtilility {
+	
 	private AmazonEC2 initializeConnection(){
 		AmazonEC2 amazonEC2Client = new AmazonEC2Client(new BasicAWSCredentials(UtilConstants.accessKeyId, UtilConstants.secretAccessKey));
 		amazonEC2Client.setEndpoint(UtilConstants.endPoint);
 		return amazonEC2Client;
 	}
 	
-	public void createSensorInstance() {
+	public void createSensorInstance(String sensorType, String location) throws ClassNotFoundException, SQLException {
 		AmazonEC2 amazonEC2Client = initializeConnection();
 		/* Creating KeyPairs */
 		String ec2KeyPair="Ec2InstanceKey1";
 		CreateKeyPairRequest createKeyPairRequest = new CreateKeyPairRequest();
 		// Should have unique key name always. Should make it dynamic. Make it
 		createKeyPairRequest.withKeyName(ec2KeyPair);
-		CreateKeyPairResult createKeyPairResult = amazonEC2Client.createKeyPair(createKeyPairRequest);
-		KeyPair keyPair = new KeyPair();
-		keyPair = createKeyPairResult.getKeyPair();
-		String privateKey = keyPair.getKeyMaterial();
-		System.out.println(privateKey);
+		amazonEC2Client.createKeyPair(createKeyPairRequest);
+//		CreateKeyPairResult createKeyPairResult = amazonEC2Client.createKeyPair(createKeyPairRequest);
+//		KeyPair keyPair = new KeyPair();
+//		keyPair = createKeyPairResult.getKeyPair();
+//		String privateKey = keyPair.getKeyMaterial();
+//		System.out.println(privateKey);
 		
 		/* Creating Amazon EC2 instance. */
 		RunInstancesRequest runInstancesRequest = new RunInstancesRequest();
@@ -54,12 +56,12 @@ public class InstancesUtilility {
 		DescribeInstancesRequest ir = new DescribeInstancesRequest();
 		ir.withInstanceIds(runInstancesResult.getReservation().getInstances().get(0).getInstanceId());
 		System.out.println(runInstancesResult.getReservation().getInstances().get(0).getInstanceId());
+		SensorVO sensorVO = new SensorVO();
+		sensorVO.setLocation(location);
+		sensorVO.setType(sensorType);
 		
-		DescribeInstancesResult ires = amazonEC2Client.describeInstances(ir);
-		System.out.println(ires.toString());
-		
-		String state = ires.getReservations().get(0).getInstances().get(0).getState().getName().toString();
-		System.out.println("state is: " + state);
+		DBConnections dBConnections = new DBConnections();
+		dBConnections.insertSensorData(sensorVO);
 	}
 	
 	public void startSensorInstance(String instanceId){
@@ -86,5 +88,10 @@ public class InstancesUtilility {
 		terminateInstancesRequest.setInstanceIds(instancesToTerminate);
 //		TerminateInstancesResult terminateInstancesResult = ec2.terminateInstances(terminateInstancesRequest);
 		ec2.terminateInstances(terminateInstancesRequest);
+	}
+	
+	public static int keyNumGen(int value){
+		UtilConstants.keyNum = value+1;
+		return UtilConstants.keyNum;
 	}
 }
